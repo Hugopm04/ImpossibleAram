@@ -1,0 +1,2 @@
+unresolved Aphelios.P [Spell_ApheliosP_Tooltip]: ['Hotkey']
+unresolved ARAM_OkBoomerang [Cherry_OkBoomerang_Summary]: ['Cooldown']

@@ -1,0 +1,11 @@
+# Raw game data downloads (large, re-fetchable with `python pipeline/fetch.py`)
+data/raw/
+
+# Node / Vite
+node_modules/
+app/dist/
+.vite/
+
+# Python
+__pycache__/
+*.pyc

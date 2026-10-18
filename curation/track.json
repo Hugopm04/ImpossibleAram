@@ -1,0 +1,26 @@
+{
+  "_source": "Riot support page 'ARAM: Mayhem Game Mode' (May 2026) + LoL wiki ARAM: Mayhem, checked 2026-10-18. Augments named at a milestone are locked until the account reaches it.",
+  "maxMilestone": 32,
+  "effects": [
+    { "milestone": 1, "effect": "goldenReroll", "note": "On Silver/Gold screens, a chance that one card can be rerolled one tier up." },
+    { "milestone": 9, "effect": "abilityAugmentPlus", "note": "Higher chance of an Ability Augment at game start." }
+  ],
+  "milestones": [
+    { "milestone": 2, "augments": ["PatOnTheBack"] },
+    { "milestone": 4, "augments": ["ForgedByTheMaster"] },
+    { "milestone": 6, "augments": ["FishBait"] },
+    { "milestone": 8, "augments": ["ARAM_Hellbent"] },
+    { "milestone": 10, "augments": ["SharkTempest"] },
+    { "milestone": 12, "augments": ["ARAM_SpiritBomb"] },
+    { "milestone": 14, "augments": ["NatureIsHealing"] },
+    { "milestone": 16, "augments": ["SurgeField"] },
+    { "milestone": 18, "augments": ["BurstingTeeth"] },
+    { "milestone": 20, "augments": ["SquishySlappyGrab"] },
+    { "milestone": 22, "augments": ["EndlessDecimation"] },
+    { "milestone": 24, "augments": ["ARAM_DropBear"] },
+    { "milestone": 26, "augments": ["Snowbomb"] },
+    { "milestone": 28, "augments": ["SkipTheBasics"] },
+    { "milestone": 30, "augments": ["PoroCharge_Active"] },
+    { "milestone": 32, "augments": ["DimensionShift_Active"] }
+  ]
+}
