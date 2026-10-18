@@ -209,6 +209,17 @@ def summoner_refs(text_en: str) -> list[str]:
     return sorted(out)
 
 
+# Items an augment talks about without naming them (tag item:<X> in curation/augments.json).
+ITEM_TAG_LINKS = {
+    "item:Sheen": ["3057", "3078", "3100", "6662", "3508", "2510"],
+    "item:InfinityEdge": ["3031"], "item:Collector": ["6676"], "item:Sunfire": ["3068", "6664"],
+    "item:Zhonya": ["3157"], "item:SunderedSky": ["6610"], "item:RavenousHydra": ["3074"],
+    "item:DeathsDance": ["6333"], "item:Heartsteel": ["3084"], "item:Wooglet": ["228002", "3089", "3157"],
+    "item:VoidImmolation": ["223069", "3068", "6664"], "item:UltraHydra": ["226668", "3074", "3748", "6698"],
+    "item:GoldenSpatula": ["994403"],
+}
+
+
 def link_items(tooltip: dict, summary: dict, items_by_name: dict[str, dict[str, str]]) -> list[str]:
     found = set()
     for loc in LOCS:
@@ -487,6 +498,8 @@ def merge_curation(augments: list[dict], items: list[dict], global_stats: dict) 
                     "p": round(c.get("p", max(0.6, min(1.4, seed))), 3), "time": c.get("time", "flat"),
                     "boost": c.get("boost", {})}
         a["global"] = gs
+        extra = [i for t in a["cur"]["t"] for i in ITEM_TAG_LINKS.get(t, [])]
+        a["linkedItems"] = list(dict.fromkeys(a["linkedItems"] + extra))
     icur = load_json(CURATION / "items.json")
     cur_items = {**icur.get("items", {}), **icur.get("special", {})}
     for it in items:

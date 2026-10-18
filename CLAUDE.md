@@ -50,31 +50,44 @@ of augment types**.
 
 ## Current status
 
-**Phase 1 — building.** Requirements Q&A finished on 2026-10-18 (decisions D1–D46 below).
-Follow the build plan; tick milestones here as they are completed. Mandatory pauses: taxonomy
-review (D27/D40) and champion restrictions if decoding is imperfect (D17/D40).
+**Phase 2 — v1 built (2026-10-18), now in refinement.** All milestones M1–M9 are done. The app
+works end to end (verified with a headless Chrome walkthrough: planner, nested hover cards, live
+mode, encyclopedia, leaderboards, Spanish, feedback save). Next work is driven by the user:
+answers to `curation/SPOTCHECK.md`, feedback files in `feedback/`, and new patches.
+
+### How to continue in a new session
+
+1. Read this file, then `README.md` (run commands).
+2. If the user played and rated builds: read `feedback/*.json` (format in `feedback/README.md`),
+   compare `computed` vs ratings/comments, adjust `curation/*.json`, rebuild
+   (`python -I pipeline/build.py`, `cd app && npm run precompute`), log the change below
+   ("Refinement log").
+3. New patch: `python -I pipeline/update.py`, then curate whatever
+   `data/reports/diff-*.md` lists under "Needs curation"; refresh the spot-check pack if useful.
+4. Requirements are in "Decisions"; anything not covered there → ask the user first (rule 1).
 
 ### Build plan (milestones)
 
 - [x] M1 Scaffolding: git repo, folder layout, `.gitignore`, README.
-- [x] M2 Data pipeline (`pipeline/`): fetch raw game data per patch (kiwi bin, string tables
-      en_us + es_es, champions + abilities, items, augment sets, quests, stat anvils, odds) and
-      build normalised JSON for the app.
-- [~] M3 Research items: 5th slot (D16), rarity-per-round / Golden Reroll / offer odds (D18),
-      augment sets, champion-restriction decoding (D17 → pause if imperfect).
-      Done: rarity odds (ARAMKit), sets (removed in 26.12), eligibility matrix (ARAMKit + u.gg),
-      stage availability. Open: 5th slot, Golden Reroll %, ability-augment → spell mapping.
-- [x] M4 Taxonomy draft (`curation/taxonomy.json`, 22 primary types): approved (D47); restriction
+- [x] M2 Data pipeline (`pipeline/`): raw game data per patch → bilingual app JSON.
+- [x] M3 Research: rarity odds (ARAMKit), sets (removed in 26.12), eligibility matrix (ARAMKit +
+      u.gg), stage availability. Still open (handled as estimates): 5th slot (D16), Golden Reroll
+      chance, exact ability-augment → spell mapping (inferred from traits).
+- [x] M4 Taxonomy (`curation/taxonomy.json`, 22 primary types): approved (D47); restriction
       approach approved (D48).
-- [ ] M5 Curation: tag all augments, champion profiles, item tags, curated combos (D44).
-- [ ] M6 Scoring engine (TypeScript, shared by app and precompute): G/C/F axes, power factor
-      (D36), whole-game curve (D33), synergy rules + combos + sets, expected vs best case (D7,
-      D46), best item build + locked build (D28/D29), anvils (D13), probabilities (D23).
-- [ ] M7 UI: champion planner, live mode, encyclopedia, leaderboards / champion ceilings,
-      nested hover cards, settings (weights, a/b, milestone, language), feedback form + auto-tune
-      + feedback files.
-- [ ] M8 Precompute leaderboards / ceilings; patch update script with diff report (D35).
-- [ ] M9 Spot-check pack for the user (D39); docs final pass.
+- [x] M5 Curation: augment tags + G/C/F/power/timing, vocabulary, synergy rules + combos +
+      conflicts + exclusions, champion flags/overrides, item mechanics; champion profiles
+      auto-derived (`pipeline/profiles.py`).
+- [x] M6 Scoring engine (`app/src/engine/`, TypeScript, shared by app and Node scripts).
+- [x] M7 UI (React + Vite): planner, live, encyclopedia, leaderboards, ceilings, settings,
+      nested hover cards, feedback form + auto-tune + feedback files.
+- [x] M8 Leaderboard precompute (`app/scripts/precompute.ts`) and patch update script
+      (`pipeline/update.py`) with diff report.
+- [x] M9 Spot-check pack `curation/SPOTCHECK.md` (D39); docs pass.
+
+### Refinement log
+
+- 2026-10-18: v1 curated layer written by Claude (no user feedback yet).
 
 ## Decisions (answers from the user)
 
@@ -132,10 +145,11 @@ review (D27/D40) and champion restrictions if decoding is imperfect (D17/D40).
 
 ## Open questions
 
-Requirements are settled. Items still to be resolved by research (not by asking):
-- 5th slot mechanics (D16); rarity-per-round, Golden Reroll and offer weights (D18);
-  champion-restriction decoding (D17); augment set definitions; stat anvil options/values.
-- Community win-rate source for D34/D36 (candidates: arammayhem.com, u.gg, mobalytics).
+Requirements are settled. Resolved: rarity odds (ARAMKit), eligibility (observed, D48), sets
+(removed in 26.12), stat anvil options (map12 `AnvilData`), win-rate source (ARAMKit raw WRs).
+Still open (currently estimates, see "Known limitations"):
+- 5th slot mechanics (D16); Golden Reroll chance; offer weights within a pool; anvil tier odds.
+- The user's answers to `curation/SPOTCHECK.md` (asked at the end of the v1 build).
 
 ## Domain notes
 
@@ -185,28 +199,46 @@ Requirements are settled. Items still to be resolved by research (not by asking)
 | LoL wiki | `https://wiki.leagueoflegends.com/en-us/ARAM_Mayhem/Augments`, `Module:MayhemAugmentData/data` | Curated list/descriptions; blocks curl with a bot challenge (needs a browser) |
 | Community stats | arammayhem.com (per-champion combos, patch notes), u.gg, mobalytics | Pick/win rates, tier lists |
 
-Local tooling available: Python 3.12, Node 20.12 / npm 10.5, git 2.47. Not a git repo yet.
+Local tooling available: Python 3.12, Node 20.12 / npm 10.5, git 2.47.
 
 ## File layout
 
 ```
 CLAUDE.md                 this index (read first)
-README.md                 user-facing overview + how to run
+README.md                 user-facing overview + run commands
 pipeline/                 Python 3.12, stdlib only; run scripts with `python -I`
-  common.py               paths, download helpers, locale table (en -> en_us, es -> es_es)
-  fetch.py                downloads raw data -> data/raw/<game version>/ (+ data/raw/CURRENT)
-  render.py               tooltip engine: string tables (plain + xxh64-hashed keys), {{includes}},
-                          @placeholders@, spell calculation evaluator, stat-id table
-  build.py                raw -> app/public/data/*.json + data/reports/build-<version>.txt
+  common.py               paths, download helpers (gzip), locale table (en -> en_us, es -> es_es)
+  fetch.py                raw game data -> data/raw/<game version>/ (+ data/raw/CURRENT)
   fetch_community.py      ARAMKit + u.gg community stats -> data/raw/<version>/community/
-curation/                 hand-authored data (version-controlled)
+  render.py               tooltip engine: string tables (plain + xxh64-hashed keys), {{includes}},
+                          @placeholders@ (incl. @spell.X:Var@), spell calculation evaluator, stat ids
+  profiles.py             champion profile attributes (0-1) + flags; ability-augment slot inference
+  community.py            per-champion eligibility/stats/builds + rarity odds from raw community data
+  build.py                raw -> app/public/data/*.json (+ champstats/) + data/reports/build-<v>.txt
+  update.py               one-command patch update + data/reports/diff-<old>-to-<new>.md
+curation/                 hand-authored data (version-controlled) — the formula's knowledge
+  taxonomy.json           22 primary augment types + assignment (approved, D47)
+  augments.json           per augment: mechanic tags, g/c/f potential 0-10, power p, timing, boosts
+  vocabulary.json         tag -> champion attribute map used for fit
+  synergy.json            pairwise tag rules, curated combos, conflicts (warnings), exclusions
+  champions.json          special champion flags + attribute overrides
+  items.json              item mechanic tags (+ special Mayhem quest items)
   track.json              Mayhem Progression Track milestones -> locked augment ids
-  taxonomy.json           augment primary types + assignment (approved, D47)
-data/raw/                 raw downloads (gitignored, ~130 MB per patch)
-data/reports/             QA reports from build.py
-app/public/data/          generated JSON consumed by the app (committed)
-feedback/                 user feedback files (D8)
-app/                      React + Vite app (not created yet)
+  SPOTCHECK.md            spot-check pack for the user (D39)
+app/                      React 18 + Vite 5 + TypeScript; `npm run dev` (port 5173)
+  vite.config.ts          includes the local feedback API (/api/feedback, /api/tuning -> ../feedback)
+  src/engine/             formula + probabilities, no DOM (also used by scripts/)
+    types.ts data.ts score.ts odds.ts search.ts items.ts anvils.ts settings.ts
+  src/views/              Planner (+ BuildPanel, RankedList), Live, Encyclopedia, Leaderboard,
+                          Settings, Feedback, common.tsx
+  src/components/         Hover.tsx (nested hover cards), RichText.tsx (game markup), cards.tsx
+  src/i18n.ts             UI strings en/es + type names
+  scripts/precompute.ts   leaderboards/ceilings -> public/data/leaderboard.json (npm run precompute)
+  scripts/smoke.ts        engine smoke test: `npx tsx scripts/smoke.ts Veigar`
+  public/data/            generated data (committed, ~17 MB)
+feedback/                 rated builds + tuning.json (written by the dev server, D8)
+data/raw/                 raw downloads (gitignored, ~130 MB game + ~700 MB community per patch)
+data/reports/             build QA reports and patch diffs
 ```
 
 ### Generated data (app/public/data)
@@ -221,8 +253,54 @@ app/                      React + Vite app (not created yet)
   tags, `purchaseIdentities` (Melee/Ranged), `resource` (arType), base `stats`, `abilities`
   P/Q/W/E/R with `tooltip {en,es}`, cooldown/cost per rank, `traits` (`Trait_*` spell tags).
 - `anvils.json`: 37 Stat Anvil shard options: tiers, tooltip, tags.
-- `items.json` (map 12, Data Dragon), `summoners.json` (modes incl. KIWI), `draft.json`
-  (cards per screen, fallback pools, display tags, selection levels), `meta.json`.
+- `items.json` (map 12, Data Dragon; `cur` = merged item tags), `summoners.json` (modes incl.
+  KIWI), `draft.json` (cards per screen, fallback pools, display tags, selection levels),
+  `meta.json`, `track.json`, `synergy.json`, `vocabulary.json` (copies of curation),
+  `odds.json` (ARAMKit rarity per stage + transitions + sequences), `eligibility.json`
+  (augment → champions), `champstats/<Champion>.json` (eligible {aug: stages}, raw `wr`
+  [winRate, pickRate, samples], `stageWr`, top `pairs`, `items`, `archetypes`, per-augment
+  `builds` with top items and purchase order), `leaderboard.json` (precompute: per champion
+  top-3 builds, top 150 combos, `reference` = 95th percentile ceiling used as score 100).
+- Augments also carry `cur` (merged curated data, `p` seeded from global WR when not curated),
+  `type` (taxonomy), `global` (ARAMKit stats), `eligibleCount`, `stages`. Champions carry
+  `profile` (0-1 attributes), `flags`, `abilityAugmentSlots`, abilities with `scalings`.
+
+## Formula (as implemented, see app/src/engine/score.ts)
+
+- craziness = power × (wG·G + wC·C + wF·F)/(wG+wC+wF); display score = craziness /
+  leaderboard reference × 100 (can exceed 100).
+- G/C/F = Σ augment base (curated g/c/f) × fit × timing + Σ items' small base + anvil shards
+  + Σ pairwise synergy rules (scaled by √(fitA·fitB); ×0.5 with an item, ×0.25 item–item)
+  + curated combos + off-role F bonus (augment archetype ∉ champion roles, fit ≥ 0.5).
+- fit = geometric mean over hooked attributes of (0.3 + 0.7·attr) × champion-flag boosts;
+  ability augments × slot quality (cooldown-based, R uses `ult`).
+- timing (whole-game curve, D33): screens at minutes 0/5/9.5/14 of a 17.5-min game; stack
+  0.35+0.65·left, quest 0.3+0.7·left, flat 0.8+0.2·left, late/instant 1.
+- power = clamp(curated + a·(raw WR − 0.5) + b·(rating − 5.5)/4.5, 0.2, 2); curated =
+  mean(p)·(0.6+0.4·mean fit) in [0.3, 1.5]; WR = mean of champion-specific raw WRs of the
+  build's augments (+ observed pair WRs, double weight).
+- Ranking (search.ts): now = evaluate(build + candidate); best case = greedy best follow-ups
+  on later screens (best luck), using follow-up gains vs the current build + exact pairwise
+  synergy with the candidate; expected = Σ later screens Σ rarity P(rarity) × E[best of ~6 seen
+  cards] × 0.85. Leaderboards use a full beam search (width 8) with fixed champion items.
+- Probabilities (odds.ts, all estimates): ARAMKit rarity chain; eligible pool = observed per
+  champion and screen, minus picked/excluded/locked-by-track; 3 cards + 1 reroll each → P(seen)
+  = 6/n; ability augment slot uniform; Golden Reroll 20% (estimate); anvil tier odds 60/30/10
+  (estimate); build probability sums over screen assignments and orders.
+- Best build (items.ts): candidates and value from ARAMKit items conditional on each augment
+  (+ champion baseline) blended with tag synergy; boots + 5 legendaries; ARAMKit purchase order.
+
+## Known limitations / estimates
+
+- Offer weights within a pool are assumed uniform (Riot's are unpublished; patch 26.14 says
+  RNG reduces repeated offer types).
+- 5th augment slot mechanics unknown; Transmute-style extras can be added as "Extra".
+- Stat ids 22, 23, 34 in tooltips are unlabelled ("stat 34" ≈ heal/shield power?).
+- Augment sets were removed in 26.12 (D44's set bonuses do not exist in the current patch).
+- The wiki blocks scripted access; use WebFetch for it. The Chrome extension was not connected
+  on 2026-10-18; UI checks used playwright-core + local Chrome from the scratchpad.
+
+
 
 ## Technical findings (for the next session)
 
