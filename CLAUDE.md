@@ -60,9 +60,12 @@ review (D27/D40) and champion restrictions if decoding is imperfect (D17/D40).
 - [x] M2 Data pipeline (`pipeline/`): fetch raw game data per patch (kiwi bin, string tables
       en_us + es_es, champions + abilities, items, augment sets, quests, stat anvils, odds) and
       build normalised JSON for the app.
-- [ ] M3 Research items: 5th slot (D16), rarity-per-round / Golden Reroll / offer odds (D18),
+- [~] M3 Research items: 5th slot (D16), rarity-per-round / Golden Reroll / offer odds (D18),
       augment sets, champion-restriction decoding (D17 → pause if imperfect).
-- [ ] M4 Taxonomy draft → **pause for user review** (D27).
+      Done: rarity odds (ARAMKit), sets (removed in 26.12), eligibility matrix (ARAMKit + u.gg),
+      stage availability. Open: 5th slot, Golden Reroll %, ability-augment → spell mapping.
+- [x] M4 Taxonomy draft (`curation/taxonomy.json`, 22 primary types): approved (D47); restriction
+      approach approved (D48).
 - [ ] M5 Curation: tag all augments, champion profiles, item tags, curated combos (D44).
 - [ ] M6 Scoring engine (TypeScript, shared by app and precompute): G/C/F axes, power factor
       (D36), whole-game curve (D33), synergy rules + combos + sets, expected vs best case (D7,
@@ -122,6 +125,8 @@ review (D27/D40) and champion restrictions if decoding is imperfect (D17/D40).
 | D43 | Spanish variant | **es_ES** (Spain) string tables. |
 | D44 | Synergy model | **General tag rules** (e.g. stacker × stat amp multiply, on-hit × attack speed, haste × per-cast) **+ hand-written curated combos** with explicit bonuses **+ set bonuses** from game data. |
 | D45 | Anti-synergy | **Warning only**: conflicts are flagged with an explanation; the score is **not** lowered and nothing is hidden. |
+| D47 | Taxonomy approved | The 22 primary types in `curation/taxonomy.json` are **approved as is** (2026-10-18). Next layer: multi-valued mechanic tags + curated G/C/F/power per augment. |
+| D48 | Eligibility source | **Observed data** (augments seen per champion and per stage in real games: ARAMKit, cross-checked with u.gg) is the eligibility source; ability-augment spells inferred from `Trait_*` spell tags. The user agreed this is what they would have suggested. |
 | D46 | Luck model | **Keep both columns** (refines D7): **Best case** = optimal play + best luck ever (every future offer goes your way); **Expected** = optimal play with real odds. Default sort: best case. The probability of the best case is shown next to it. |
 
 ## Open questions
@@ -192,8 +197,10 @@ pipeline/                 Python 3.12, stdlib only; run scripts with `python -I`
   render.py               tooltip engine: string tables (plain + xxh64-hashed keys), {{includes}},
                           @placeholders@, spell calculation evaluator, stat-id table
   build.py                raw -> app/public/data/*.json + data/reports/build-<version>.txt
+  fetch_community.py      ARAMKit + u.gg community stats -> data/raw/<version>/community/
 curation/                 hand-authored data (version-controlled)
   track.json              Mayhem Progression Track milestones -> locked augment ids
+  taxonomy.json           augment primary types + assignment (approved, D47)
 data/raw/                 raw downloads (gitignored, ~130 MB per patch)
 data/reports/             QA reports from build.py
 app/public/data/          generated JSON consumed by the app (committed)
@@ -242,5 +249,23 @@ app/                      React + Vite app (not created yet)
   and not with Runaan's; Earthwake max 2 per team; Poro Blaster 1 per team; summoner-slot
   replacers (Blade Waltz, Dimension Shift, Growth Spurt, Empyrean Promise, Flash 2, Flashbang,
   Flashy, Biggest Snowball Ever, Holy Snowball, Clown College).
-- arammayhem.com has per-champion augment "appearance rate", pick rate, win rate (HTML pages
-  `/build/<champ>/`, `/augments/<slug>/`): candidate source for odds, restrictions and win rates.
+- **Community data (fetched by `pipeline/fetch_community.py`)**:
+  - **ARAMKit** (aramkit.com; static JSON on `data.aramkit.com/<dataPath>/stats/all/`, dataPath
+    read from the site's Nuxt config `aramKitDataVersions`): `augment-rarity.json` (rarity odds per
+    stage, stage→stage transitions, 81 four-stage sequences; 16.20: stage 1 = 10.9% S / 60.5% G /
+    28.7% P, later stages ≈ 29.3/44.2/26.5 with transitions), `champion-details/<key>.json`
+    (per champion: augments all + per stage with winRate/pickRate/sampleCount/`availableStages`,
+    top augment pairs, items per slot, build archetypes), `<key>-single-augments.json` (items and
+    builds conditional on each augment: input for the best-build scenario, D25), rankings.
+    ~36.7M games for 16.20.
+  - **u.gg** (static.bigbrain.gg/custom-aram-mayhem/<patch>/): per-champion observed augment
+    lists by rarity (`tierlist-augments-<key>-<patch>.json`), manifest, champion tiers.
+  - The two sources agree on per-champion augment counts (e.g. Ezreal 130 of 216 enabled).
+- **Eligibility finding (D17)**: champion eligibility is server-side; requirement bits only
+  partly explain it, but the observed matrix shows clean classes (e.g. the 5 armor/MR-scaling
+  augments appear for exactly the same 85 champions; AP augments ~102–105; support ones ~20).
+  Current plan: eligibility = observed per champion and per stage (ARAMKit, cross-checked with
+  u.gg); ability-augment → spell assignment inferred from `Trait_*` spell tags.
+- **Stage availability**: augments have stage restrictions (e.g. Pursuit of Power only stages
+  1–2, Bread and Butter only 2–4) — ARAMKit `availableStages`.
+- arammayhem.com: per-champion "appearance rate" for top augments, curated combo notes (HTML).

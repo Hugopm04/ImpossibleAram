@@ -1,6 +1,7 @@
 """Shared paths and download helpers for the data pipeline (stdlib only)."""
 from __future__ import annotations
 
+import gzip
 import json
 import time
 import urllib.error
@@ -23,7 +24,7 @@ LOCALES = {
     "es": ("es_es", "es_es", "es_ES"),
 }
 
-UA = {"User-Agent": "ImpossibleAram-pipeline/1.0 (personal fan tool)"}
+UA = {"User-Agent": "ImpossibleAram-pipeline/1.0 (personal fan tool)", "Accept-Encoding": "gzip"}
 
 
 def http_get(url: str, retries: int = 4) -> bytes:
@@ -32,7 +33,10 @@ def http_get(url: str, retries: int = 4) -> bytes:
         try:
             req = urllib.request.Request(url, headers=UA)
             with urllib.request.urlopen(req, timeout=120) as r:
-                return r.read()
+                data = r.read()
+                if r.headers.get("Content-Encoding") == "gzip":
+                    data = gzip.decompress(data)
+                return data
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 raise
