@@ -194,7 +194,10 @@ export interface Meta {
   communitySources: { aramkit: string | null; ugg: boolean };
 }
 
+export type Objective = "craziness" | "g" | "c" | "f";
+
 export interface LeaderboardBuild {
+  found?: Objective; // what the search maximized (D53)
   picks: Pick[];
   items: string[];
   craziness: number;
@@ -209,8 +212,11 @@ export interface Leaderboard {
   patch: string;
   reference: number;
   settings: { weights: Settings["weights"]; milestone: number };
-  champions: { id: string; best: LeaderboardBuild; top: LeaderboardBuild[]; expected: number; expectedFirst?: string }[];
-  combos: (LeaderboardBuild & { champion: string })[];
+  champions: {
+    id: string; best: LeaderboardBuild; top: LeaderboardBuild[]; expected: number; expectedFirst?: string;
+    axisBest?: Partial<Record<"g" | "c" | "f", LeaderboardBuild>>;
+  }[];
+  combos?: (LeaderboardBuild & { champion: string })[]; // v1 files only; rows are now derived from champions
 }
 
 export interface GameData {

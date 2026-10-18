@@ -5,6 +5,7 @@ import { t, tx, TYPE_NAMES } from "../i18n";
 import type { Rarity } from "../engine/types";
 import { AugIcon, AugmentRef, RarityBadge } from "../components/cards";
 import { plain } from "../components/RichText";
+import { SortTh, directed, useSort } from "../components/Sort";
 
 type SortKey = "name" | "rarity" | "g" | "c" | "f" | "wr" | "elig";
 
@@ -15,7 +16,7 @@ export function Encyclopedia() {
   const [type, setType] = useState("all");
   const [tag, setTag] = useState("");
   const [onlyEnabled, setOnlyEnabled] = useState(true);
-  const [sort, setSort] = useState<SortKey>("name");
+  const sort = useSort<SortKey>("name", ["name", "rarity"]);
   const champ = build ? data?.championById.get(build.champion) ?? null : null;
   const list = useMemo(() => {
     if (!data) return [];
@@ -24,21 +25,21 @@ export function Encyclopedia() {
       (!onlyEnabled || a.enabled) && (rarity === "all" || a.rarity === rarity) && (type === "all" || a.type === type) &&
       (!tag || a.cur.t.some((x) => x.includes(tag))) &&
       (!q || tx(loc, a.name).toLowerCase().includes(q.toLowerCase()) || plain(tx(loc, a.tooltip)).toLowerCase().includes(q.toLowerCase())))
-      .sort((a, b) => {
-        switch (sort) {
+      .sort(directed(sort.dir, (a, b) => {
+        switch (sort.key) {
           case "rarity": return ord[a.rarity] - ord[b.rarity];
-          case "g": return b.cur.g - a.cur.g;
-          case "c": return b.cur.c - a.cur.c;
-          case "f": return b.cur.f - a.cur.f;
-          case "wr": return (b.global?.winRate ?? 0) - (a.global?.winRate ?? 0);
-          case "elig": return b.eligibleCount - a.eligibleCount;
+          case "g": return a.cur.g - b.cur.g;
+          case "c": return a.cur.c - b.cur.c;
+          case "f": return a.cur.f - b.cur.f;
+          case "wr": return (a.global?.winRate ?? 0) - (b.global?.winRate ?? 0);
+          case "elig": return a.eligibleCount - b.eligibleCount;
           default: return tx(loc, a.name).localeCompare(tx(loc, b.name));
         }
-      });
-  }, [data, q, rarity, type, tag, onlyEnabled, sort, loc]);
+      }));
+  }, [data, q, rarity, type, tag, onlyEnabled, sort.key, sort.dir, loc]);
   if (!data) return null;
   const types = [...new Set(data.augments.map((a) => a.type).filter(Boolean))].sort();
-  const th = (k: SortKey, label: string) => <th className={sort === k ? "sorted" : ""} onClick={() => setSort(k)}>{label}</th>;
+  const th = (k: SortKey, label: string) => <SortTh k={k} sort={sort}>{label}</SortTh>;
   return (
     <div className="panel">
       <h2>{t(loc, "encyclopedia")} ({list.length})</h2>

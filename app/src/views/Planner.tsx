@@ -12,10 +12,7 @@ import { HoverRef } from "../components/Hover";
 import { ChampionPicker, ItemsRow, Odds, SlotPicker, emptyBuild, useBestBuilds, useDeferredCompute, useEngineCtx } from "./common";
 import { BuildPanel } from "./BuildPanel";
 import { WeightSliders } from "./Settings";
-
-const SORTS: { key: Settings["sortBy"]; label: "best" | "expected" | "now" | "pNext" }[] = [
-  { key: "best", label: "best" }, { key: "expected", label: "expected" }, { key: "now", label: "now" }, { key: "probability", label: "pNext" },
-];
+import { SortTh, type Dir, type SortState } from "../components/Sort";
 
 export function Planner() {
   const { data, build, setBuild } = useApp();
@@ -41,6 +38,15 @@ export function RankedList({ build, filterIds }: { build: Build; filterIds?: str
   const [q, setQ] = useState("");
   const [slots, setSlots] = useState<Record<string, Slot>>({});
   const [asExtra, setAsExtra] = useState(false);
+  const [dir, setDir] = useState<Dir>("desc");
+  // the engine sorts by settings.sortBy (persisted); the direction is local (D54)
+  const sort: SortState<Settings["sortBy"]> = {
+    key: settings.sortBy, dir,
+    set: (k) => {
+      if (k === settings.sortBy) setDir(dir === "asc" ? "desc" : "asc");
+      else { setSettings({ sortBy: k }); setDir("desc"); }
+    },
+  };
   const stage = nextStage(build);
   const bbs = useBestBuilds(ctx, build);
   const items = bbs?.free.items ?? [];
@@ -49,11 +55,14 @@ export function RankedList({ build, filterIds }: { build: Build; filterIds?: str
     [ctx, build, items.join(","), settings.sortBy],
   );
   const anvils = useMemo(() => (ctx ? anvilEntries(ctx, build, items) : []), [ctx, build, items.join(",")]);
-  const filtered = useMemo(() => (rows ?? []).filter((r) =>
-    (!filterIds || filterIds.includes(r.aug.id)) &&
-    (rarity === "all" || r.aug.rarity === rarity) &&
-    (type === "all" || r.aug.type === type) &&
-    (!q || tx(loc, r.aug.name).toLowerCase().includes(q.toLowerCase()))), [rows, rarity, type, q, loc, filterIds]);
+  const filtered = useMemo(() => {
+    const out = (rows ?? []).filter((r) =>
+      (!filterIds || filterIds.includes(r.aug.id)) &&
+      (rarity === "all" || r.aug.rarity === rarity) &&
+      (type === "all" || r.aug.type === type) &&
+      (!q || tx(loc, r.aug.name).toLowerCase().includes(q.toLowerCase())));
+    return dir === "asc" ? out.reverse() : out;
+  }, [rows, rarity, type, q, loc, filterIds, dir]);
   const visible = filtered.slice(0, 60);
   const perRowBuilds = useMemo(() => {
     if (!ctx) return new Map<string, string[]>();
@@ -74,16 +83,7 @@ export function RankedList({ build, filterIds }: { build: Build; filterIds?: str
 
   return (
     <div className="panel">
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-        <h2 style={{ margin: 0 }}>{stage <= 4 ? `${t(loc, "screen")} ${stage}` : t(loc, "fullBuild")}</h2>
-        <div className="row small">
-          <span className="muted">{t(loc, "sortBy")}:</span>
-          {SORTS.map((s) => (
-            <button key={s.key} className={`btn ghost${settings.sortBy === s.key ? " primary" : ""}`} style={{ padding: "3px 8px" }}
-              onClick={() => setSettings({ sortBy: s.key })}>{t(loc, s.label)}</button>
-          ))}
-        </div>
-      </div>
+      <h2>{stage <= 4 ? `${t(loc, "screen")} ${stage}` : t(loc, "fullBuild")}</h2>
       <div className="row" style={{ marginBottom: 8 }}>
         <input className="input list-search" placeholder={t(loc, "search")} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 180 }} />
         <select className="input" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity | "all")}>
@@ -134,10 +134,10 @@ export function RankedList({ build, filterIds }: { build: Build; filterIds?: str
           <thead>
             <tr>
               <th>{t(loc, "augment")}</th>
-              <th className={settings.sortBy === "now" ? "sorted" : ""} onClick={() => setSettings({ sortBy: "now" })}>{t(loc, "now")}</th>
-              <th className={settings.sortBy === "best" ? "sorted" : ""} onClick={() => setSettings({ sortBy: "best" })}>{t(loc, "best")}</th>
-              <th className={settings.sortBy === "expected" ? "sorted" : ""} onClick={() => setSettings({ sortBy: "expected" })}>{t(loc, "expected")}</th>
-              <th className={settings.sortBy === "probability" ? "sorted" : ""} onClick={() => setSettings({ sortBy: "probability" })}>{t(loc, "pNext")}</th>
+              <SortTh k="now" sort={sort}>{t(loc, "now")}</SortTh>
+              <SortTh k="best" sort={sort}>{t(loc, "best")}</SortTh>
+              <SortTh k="expected" sort={sort}>{t(loc, "expected")}</SortTh>
+              <SortTh k="probability" sort={sort}>{t(loc, "pNext")}</SortTh>
               <th>{t(loc, "pBest")}</th>
               <th>{t(loc, "buildItems")}</th>
               <th />

@@ -1,4 +1,5 @@
 // Precompute the general-stats views (D21): craziest combos leaderboard and champion ceilings.
+// Per champion: the top 3 builds by craziness plus the build maximizing power × each axis (D53).
 //   npm run precompute            (all champions, ~minutes)
 //   npm run precompute -- Veigar  (only some champions, for testing)
 // Writes public/data/leaderboard.json. Uses default settings (D32 weights, milestone 32 = all
@@ -11,7 +12,8 @@ import { beamSearch, oddsCtx, rankCandidates } from "../src/engine/search";
 import { bestBuild } from "../src/engine/items";
 import { completionProbability } from "../src/engine/odds";
 import { DEFAULT_SETTINGS } from "../src/engine/settings";
-import type { Build } from "../src/engine/types";
+import type { Build, Objective } from "../src/engine/types";
+import type { Evaluation } from "../src/engine/score";
 import { DATA_DIR, nodeReader } from "./nodeData";
 
 const only = process.argv.slice(2);
@@ -25,23 +27,28 @@ for (const champ of champs) {
   const ctx = makeCtx(data, champ, stats, settings, []);
   const empty: Build = { champion: champ.id, picks: [], anvils: [], lockedItems: [] };
   const baseItems = bestBuild(ctx, empty).items;
-  const results = beamSearch(ctx, () => baseItems, 8);
-  const top = results.slice(0, 3).map((r) => {
+  const describe = (r: { build: Build }, found: Objective) => {
     const items = bestBuild(ctx, r.build).items;
     const ev = evaluate(ctx, r.build, items, true);
     const prob = completionProbability(oddsCtx(ctx), empty, r.build.picks.map((p) => ({ aug: p.aug, slot: p.slot })));
     return {
-      picks: r.build.picks, items, craziness: round(ev.craziness), axes: roundAxes(ev.axes), power: round(ev.power),
+      found, picks: r.build.picks, items, craziness: round(ev.craziness), axes: roundAxes(ev.axes), power: round(ev.power),
       probability: prob,
       highlights: ev.contributions.filter((c) => c.kind !== "base").sort((a, b) => mag(b.axes) - mag(a.axes))
         .slice(0, 4).map((c) => ({ a: c.a, b: c.b, why: c.why })),
     };
-  });
+  };
+  const top = beamSearch(ctx, () => baseItems, 8).slice(0, 3).map((r) => describe(r, "craziness"));
+  const axisBest: Record<string, unknown> = {};
+  for (const k of ["g", "c", "f"] as const) {
+    const objective = (ev: Evaluation) => ev.power * ev.axes[k];
+    const r = beamSearch(ctx, () => baseItems, 8, undefined, objective)[0];
+    if (r) axisBest[k] = describe(r, k);
+  }
   const exp = rankCandidates(ctx, empty, { items: baseItems, limit: 1 })[0];
-  out.push({ id: champ.id, best: top[0], top, expected: round(exp?.expected ?? 0), expectedFirst: exp?.aug.id });
+  out.push({ id: champ.id, best: top[0], top, axisBest, expected: round(exp?.expected ?? 0), expectedFirst: exp?.aug.id });
   process.stdout.write(`${champ.id} ${top[0]?.craziness} (${((performance.now() - t0) / 1000).toFixed(0)}s)\n`);
 }
-const all = out.flatMap((c) => c.top.map((b: any) => ({ champion: c.id, ...b }))).sort((a, b) => b.craziness - a.craziness);
 const bests = out.map((c) => c.best?.craziness ?? 0).sort((a, b) => a - b);
 const reference = bests.length ? bests[Math.floor(bests.length * 0.95)] || bests[bests.length - 1] : 30;
 const file = path.join(DATA_DIR, "leaderboard.json");
@@ -50,7 +57,7 @@ const result = prev && only.length
   ? { ...prev, champions: [...prev.champions.filter((c: any) => !only.includes(c.id)), ...out] }
   : {
     builtAt: new Date().toISOString(), patch: data.meta.patch, reference: round(reference),
-    settings: { weights: settings.weights, milestone: settings.milestone }, champions: out, combos: all.slice(0, 150),
+    settings: { weights: settings.weights, milestone: settings.milestone }, champions: out,
   };
 fs.writeFileSync(file, JSON.stringify(result));
 console.log(`wrote ${file} (${out.length} champions, reference ${round(reference)})`);

@@ -92,6 +92,8 @@ a { color: var(--blue); }
 .champ-tile:hover { border-color: var(--gold-dim); }
 .champ-tile img { width: 52px; height: 52px; border-radius: 4px; border: 1px solid var(--gold-dim); }
 .champ-tile span { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.1; }
+.champ-tile .tile-score { font-size: 12px; font-weight: 700; color: var(--gold-hi); font-variant-numeric: tabular-nums; line-height: 1; }
+.champ-tile .tile-score.none { color: var(--text-dim); font-weight: 400; }
 .champ-head { display: flex; gap: 12px; align-items: center; }
 .champ-head > img { width: 64px; height: 64px; border-radius: 6px; border: 2px solid var(--gold); }
 .champ-head .name { font-family: "Cinzel", serif; font-size: 20px; color: var(--gold-hi); }
@@ -129,8 +131,23 @@ a { color: var(--blue); }
 
 /* ranked list */
 .list { width: 100%; border-collapse: separate; border-spacing: 0 4px; }
-.list th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gold); font-weight: 600; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
-.list th.sorted { color: var(--gold-hi); }
+.list th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gold); font-weight: 600; padding: 4px 8px; white-space: nowrap; }
+.list th.sortable { padding: 2px 4px; }
+
+/* sortable headers and sort bars (D54) */
+.list th.sortable > button, .sortbtn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  background: rgba(200, 170, 110, 0.05); border: 1px solid var(--line-gold); color: var(--gold);
+  font: inherit; font-weight: 600; text-transform: inherit; letter-spacing: inherit; white-space: nowrap;
+}
+.list th.sortable > button:hover, .sortbtn:hover { border-color: var(--gold); color: var(--gold-hi); background: rgba(200, 170, 110, 0.13); }
+.list th.sortable > button:focus-visible, .sortbtn:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 1px; }
+.list th.sorted > button, .sortbtn.sorted { border-color: var(--gold); background: rgba(200, 170, 110, 0.24); color: var(--gold-hi); }
+.arrow { font-size: 10px; opacity: 0.5; }
+.sorted .arrow, .sortbtn.sorted .arrow { opacity: 1; color: var(--gold-hi); }
+.sortbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sortbtn { font-size: 12px; }
+.foundchip { display: inline-block; font-size: 10px; padding: 0 5px; margin-left: 6px; border-radius: 3px; border: 1px solid currentColor; vertical-align: middle; }
 .list td { background: rgba(14, 26, 40, 0.85); padding: 6px 8px; border-top: 1px solid #1a2636; border-bottom: 1px solid #1a2636; vertical-align: middle; }
 .list td:first-child { border-left: 1px solid #1a2636; border-radius: 6px 0 0 6px; }
 .list td:last-child { border-right: 1px solid #1a2636; border-radius: 0 6px 6px 0; }

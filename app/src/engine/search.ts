@@ -176,9 +176,12 @@ export function sortValue(c: Candidate, key: string): number {
   }
 }
 
-/** Full beam search for the craziest complete builds of a champion (leaderboards, ceilings). */
-export function beamSearch(ctx: Ctx, items: (b: Build) => string[], width = 10, start?: Build):
-  { build: Build; eval: Evaluation }[] {
+/**
+ * Full beam search for the craziest complete builds of a champion (leaderboards, ceilings).
+ * `objective` defaults to craziness; precompute also maximizes power × one axis (D53).
+ */
+export function beamSearch(ctx: Ctx, items: (b: Build) => string[], width = 10, start?: Build,
+  objective: (ev: Evaluation) => number = (ev) => ev.craziness): { build: Build; eval: Evaluation }[] {
   const o = oddsCtx(ctx);
   let beam: Build[] = [start ?? { champion: ctx.champ.id, picks: [], anvils: [], lockedItems: [] }];
   const stages = remainingStages(beam[0]);
@@ -196,7 +199,7 @@ export function beamSearch(ctx: Ctx, items: (b: Build) => string[], width = 10, 
         const nb = withPick(b, a, s, slot);
         const k = keyOf(nb);
         if (cache.has(k)) continue;
-        const v = evaluate(ctx, nb, items(nb)).craziness;
+        const v = objective(evaluate(ctx, nb, items(nb)));
         cache.set(k, v);
         next.push({ b: nb, v });
       }

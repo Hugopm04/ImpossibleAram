@@ -17,7 +17,9 @@ A local tool for finding the craziest champion + augment combinations in League 
   abilities they mention open their own cards, nested as deep as you like (click to pin).
 - **Live**: type in the cards you are offered (and reroll results) to get pick and reroll advice.
 - **Augments**: an encyclopedia of all augments with filters.
-- **Craziest combos / Champion ceilings**: precomputed leaderboards across all champions.
+- **Craziest combos / Champion ceilings**: precomputed leaderboards across all champions, sortable
+  by every score column (each champion's craziest build plus its most-G / C / F build). The
+  champion picker is sorted by craziness ceiling by default.
 - **Feedback**: rate a build (overall, per axis, comment). Ratings tune the formula weights and
   are saved to `feedback/` for later refinement.
 - English and Spanish (game texts from the official localizations).
@@ -28,6 +30,12 @@ A local tool for finding the craziest champion + augment combinations in League 
 - Python 3.12+ (data pipeline, standard library only), only needed to refresh data
 
 ## Run the app
+
+```bash
+./run.sh           # installs dependencies if needed, starts the app, opens http://localhost:5173
+```
+
+`run.sh` needs a Bash shell (Git Bash on Windows). By hand:
 
 ```bash
 cd app

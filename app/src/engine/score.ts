@@ -246,6 +246,11 @@ export function weightedSum(settings: Settings, ax: Axes): number {
   return (w.g * ax.g + w.c * ax.c + w.f * ax.f) / tot;
 }
 
+/** craziness = power × weighted axes (also used to re-weight stored leaderboard builds, D52). */
+export function crazinessOf(settings: Settings, power: number, ax: Axes): number {
+  return power * weightedSum(settings, ax);
+}
+
 let scoreReference = SCORE_REFERENCE;
 /** Calibrate the display scale (leaderboard.json "reference" = 95th percentile champion ceiling -> 100). */
 export function setScoreReference(ref: number | undefined) {
@@ -360,7 +365,7 @@ export function evaluate(ctx: Ctx, build: Build, items: string[], withDetails = 
   const rating = ratingFor(ctx, augIds);
   const ratingTerm = rating == null ? 0 : settings.b * (rating - 5.5) / 4.5;
   const power = clamp(curated + wrTerm + ratingTerm, 0.2, 2.0);
-  const craziness = power * weightedSum(settings, axes);
+  const craziness = crazinessOf(settings, power, axes);
   const warnings = withDetails ? conflicts(ctx, elements) : [];
   return {
     axes, power, powerParts: { curated, wr, wrTerm, rating, ratingTerm }, craziness,

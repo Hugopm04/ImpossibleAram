@@ -50,10 +50,11 @@ of augment types**.
 
 ## Current status
 
-**Phase 2 — v1 built (2026-10-18), now in refinement.** All milestones M1–M9 are done. The app
-works end to end (verified with a headless Chrome walkthrough: planner, nested hover cards, live
-mode, encyclopedia, leaderboards, Spanish, feedback save). Next work is driven by the user:
-answers to `curation/SPOTCHECK.md`, feedback files in `feedback/`, and new patches.
+**Phase 3 — formula v2 (mechanical simulation), started 2026-10-18.** v1 (M1–M9) works end to
+end. The user found the v1 leaderboard dominated by generic, easily-countered HP-stacking tanks
+(axes on different scales, item×augment rule repeats, no counter model). After a Q&A round the
+formula is being rebuilt as a minute-by-minute game simulation (D55–D72). Work order (D73):
+UI batch first (M10, pushed), then the simulation (M11–M16, pushed when complete).
 
 ### How to continue in a new session
 
@@ -84,10 +85,25 @@ answers to `curation/SPOTCHECK.md`, feedback files in `feedback/`, and new patch
 - [x] M8 Leaderboard precompute (`app/scripts/precompute.ts`) and patch update script
       (`pipeline/update.py`) with diff report.
 - [x] M9 Spot-check pack `curation/SPOTCHECK.md` (D39); docs pass.
+- [x] M10 UI batch: `run.sh` (D50), sortable champion picker (D51), sortable combos + per-axis
+      search (D53), sort-button headers (D54), live re-weight of precomputed scores (D52).
+- [ ] M11 Simulation data: champion averages (gold/min, K/D/A per min, damage mix, duration),
+      reference enemy (D62), normal Mayhem player baseline (D58), screen timing (D59/D70),
+      ARAM balance modifiers research (D71).
+- [ ] M12 Mechanics encoding: every enabled augment, legendary item/boots/quest item, champion
+      abilities (data ratios) + hand-encoded stacking kits (D55, D57).
+- [ ] M13 Simulation engine + outputs + axes v2 (D56–D61, D63–D66) replacing tag-point G/C.
+- [ ] M14 Item optimizer (D64), planner speed modes (D69), precompute v2 (D53).
+- [ ] M15 UI v2: curve chart (D68), knobs + "I'm seeing…" enemy chips (D62, D69), Live timer
+      (D70), stale/recompute (D52).
+- [ ] M16 Calibration report + spot-check curves (D67); docs pass; push.
 
 ### Refinement log
 
 - 2026-10-18: v1 curated layer written by Claude (no user feedback yet).
+- 2026-10-18: user review of the v1 leaderboard: top 20 = the same HP-stacking package on tanks
+  (G ≈ 85 vs C ≈ 18; 41 item×augment rule hits = 47 of Sion's 86 G; no counter model). Led to
+  formula v2 (D50–D73).
 
 ## Decisions (answers from the user)
 
@@ -137,11 +153,35 @@ answers to `curation/SPOTCHECK.md`, feedback files in `feedback/`, and new patch
 | D42 | Style | **LoL Hextech dark**: dark blue/black, gold accents, in-game rarity colours (silver / gold / prismatic). |
 | D43 | Spanish variant | **es_ES** (Spain) string tables. |
 | D44 | Synergy model | **General tag rules** (e.g. stacker × stat amp multiply, on-hit × attack speed, haste × per-cast) **+ hand-written curated combos** with explicit bonuses **+ set bonuses** from game data. |
-| D45 | Anti-synergy | **Warning only**: conflicts are flagged with an explanation; the score is **not** lowered and nothing is hidden. |
+| D45 | Anti-synergy | **Warning only**: conflicts are flagged with an explanation; the score is **not** lowered and nothing is hidden. (Superseded for simulated clashes by D66.) |
 | D47 | Taxonomy approved | The 22 primary types in `curation/taxonomy.json` are **approved as is** (2026-10-18). Next layer: multi-valued mechanic tags + curated G/C/F/power per augment. |
 | D48 | Eligibility source | **Observed data** (augments seen per champion and per stage in real games: ARAMKit, cross-checked with u.gg) is the eligibility source; ability-augment spells inferred from `Trait_*` spell tags. The user agreed this is what they would have suggested. |
 | D49 | Remote | `origin` = https://github.com/Hugopm04/ImpossibleAram (empty repo prepared by the user). **Commit and push once the build is done** (user request 2026-10-18, supersedes "never pushed" in D41). |
 | D46 | Luck model | **Keep both columns** (refines D7): **Best case** = optimal play + best luck ever (every future offer goes your way); **Expected** = optimal play with real odds. Default sort: best case. The probability of the best case is shown next to it. |
+| D50 | Run command | `./run.sh` (Git Bash): `npm install` only when needed, start the dev server, open the browser. |
+| D51 | Champion picker | Planner and Live: **icon grid + score badge + sort bar**; sort by ceiling (default, best case as D46), expected, name, G, C, F. |
+| D52 | Stale scores | Precomputed champion/leaderboard scores **re-weight instantly** when G/C/F sliders move (stored axes × power). Knob / enemy changes mark them **stale** with a **Recompute** button running the full search in the background. |
+| D53 | Combos list | Sortable columns; precompute **also searches the most-G, most-C and most-F build** per champion, and the list covers **all champions** (not a top 150). |
+| D54 | Sort headers | Sortable headers look like buttons: ⇅ on every sortable one, active ▼/▲ in gold, frame + hover; non-sortable headers stay plain. **Second click flips** the direction. |
+| D55 | Formula v2 | **Mechanical simulation replaces tag points for G and C.** A typical game is simulated minute by minute per champion + build: level, gold (champion's real gold/min), items completed in buy order when affordable, augments at their screens, events at the champion's real rates (ARAMKit kills/deaths/assists per minute, time in combat). **Every** augment, item and champion passive/ability is encoded as mechanics with real numbers (flat stats, per-event stacks with caps / lose-on-death, conversions, amplifiers, procs, internal cooldowns). Compounding emerges from the simulation (Heartsteel + HP augment = exponential HP; + HP per takedown = linear × exponential; + execute scaling with HP = exponential execute). The user's Heartsteel example applies to everything. Goal: "a real crazy-build maker, not the biggest theoretical number". |
+| D56 | Value | **Champion-effective gold**: stats count only through what they do for this champion (damage via its real ratios vs the reference enemy; toughness = effective HP vs the reference enemy's damage mix, so %max-HP damage, anti-heal and penetration discount HP/heals/armor), converted to gold-equivalent. |
+| D57 | Outputs | Per minute: **Damage** (burst + sustained DPS), **Toughness** (EHP, shields, sustain, revives, invuln/stasis uptime), **Reach & speed** (range, move speed), **Control** (CC seconds). Non-stat effects are simulated where meaningful (invuln/revive → toughness, CC immunity/tenacity → less enemy control on you, summons/sharks/poros → damage + control); purely visual parts stay curated F. |
+| D58 | Baseline | Advantage = output ÷ a **normal Mayhem player**: same champion, its most common items and the most-picked augments per screen (ARAMKit). |
+| D59 | Game length | Bell-shaped distribution around the champion's real average duration (spread = estimate), **every minute** evaluated and weighted by P(game still going). Augment screen minutes derived from data (XP curve + game data), flagged as estimates. |
+| D60 | Axes v2 | **G** = expected fight-power advantage × (1 + k · growth slope), fight power = √(Damage adv × Toughness adv). **C** = **soft max** of Toughness, Reach & speed and Control advantages + qualitative (invuln, CC immunity, untargetable). **F** = curated fun + absurd-number bonus (size & MS, range & AS, ability spam, giant totals) vs the normal Mayhem player. Each axis **normalized by its own 95th percentile** across champion ceilings, then the weighted sum (D5/D32 unchanged). |
+| D61 | Spam fun | Payload frequency counts when it beats **both** the League norm for that payload (invuln ≈ 2 min, ult ≈ 80–120 s, hard CC ≈ 10–15 s, big heal/shield ≈ 20 s) **and** the champion's own normal; **only build-driven** (augment/item adds the payload or boosts its frequency; a naked Jayce R gets nothing; Jayce + invuln-on-ult every 15 s is great). Payload weights **invuln > hard CC > heal/shield > damage**, ult casts extra. Grows **per doubling** (log). |
+| D62 | Reference enemy | **Average ARAM enemy from data** (pick-rate weighted across champions): damage split, %max-HP share, anti-heal prevalence, armor/MR/HP by minute, **typical augments**. Adjusted by **"I'm seeing…" chips** in player language (none / some / lots; some = data average), **specific enemy champion + augment combos** (extra weight), and **free-text notes** saved to `feedback/meta-<patch>.md` for Claude. Not reset per patch. |
+| D63 | Power v2 | Power multiplier keeps **all three terms** (curated + raw WR + rating, D36) on top of the simulation. |
+| D64 | Items v2 | The **simulation optimizes items** greedily per purchase (candidates: ARAMKit items for the champion/augments + model synergies); buy order matters through gold timing. |
+| D65 | Old rules | Synergy rules / curated combos are **retired for G/C** and keep only their F part; the "Why" panel is generated from the simulation. |
+| D66 | D45 updated | Simulated clashes **may lower** the score (it's the mechanics); the conflict warnings stay. |
+| D67 | Validation | Calibrate the normal-player simulation against ARAMKit per-game numbers (gold, damage by type, damage taken, duration) with a misfit report in `data/reports/`, plus a spot-check pack of famous builds' curves. **No midway checkpoint** (D38). |
+| D68 | Sim UI | Build panel: **curve chart** of advantage over time per output + key numbers at a few minutes; ranked rows: hover mini curve. |
+| D69 | Knobs | Settings in **player language**: game length (short ↔ long), snowball (barely ↔ a lot), growth shape (raw power ↔ exponential), enemy chips (D62). Planner default **1–3 s accurate** (rank with fixed items, re-optimize top ~40); **"Exact mode"** switch = whatever it takes. |
+| D70 | Live timer | Live has a **"Start match"** button; the elapsed time is the current minute, and the simulation evaluates the rest of the game from there with the owned items. |
+| D71 | ARAM modifiers | Unknown to the user whether Mayhem uses ARAM per-champion balance modifiers: **research** (game files / wiki), apply what Mayhem uses, document the source. |
+| D72 | Generic builds | **No penalty** for generic packages that top many champions (user: "no change"). |
+| D73 | Delivery v2 | UI batch first (commit + push), simulation committed at milestones, pushed when complete. |
 
 ## Open questions
 
@@ -206,6 +246,7 @@ Local tooling available: Python 3.12, Node 20.12 / npm 10.5, git 2.47.
 ```
 CLAUDE.md                 this index (read first)
 README.md                 user-facing overview + run commands
+run.sh                    one-command start (D50): npm install if needed, dev server, open browser
 pipeline/                 Python 3.12, stdlib only; run scripts with `python -I`
   common.py               paths, download helpers (gzip), locale table (en -> en_us, es -> es_es)
   fetch.py                raw game data -> data/raw/<game version>/ (+ data/raw/CURRENT)
@@ -229,9 +270,11 @@ app/                      React 18 + Vite 5 + TypeScript; `npm run dev` (port 51
   vite.config.ts          includes the local feedback API (/api/feedback, /api/tuning -> ../feedback)
   src/engine/             formula + probabilities, no DOM (also used by scripts/)
     types.ts data.ts score.ts odds.ts search.ts items.ts anvils.ts settings.ts
+    leaderboard.ts        live re-weighting of precomputed builds (D52), combo rows
   src/views/              Planner (+ BuildPanel, RankedList), Live, Encyclopedia, Leaderboard,
                           Settings, Feedback, common.tsx
-  src/components/         Hover.tsx (nested hover cards), RichText.tsx (game markup), cards.tsx
+  src/components/         Hover.tsx (nested hover cards), RichText.tsx (game markup), cards.tsx,
+                          Sort.tsx (sortable headers / sort bars, D54)
   src/i18n.ts             UI strings en/es + type names
   scripts/precompute.ts   leaderboards/ceilings -> public/data/leaderboard.json (npm run precompute)
   scripts/smoke.ts        engine smoke test: `npx tsx scripts/smoke.ts Veigar`
@@ -260,7 +303,8 @@ data/reports/             build QA reports and patch diffs
   (augment → champions), `champstats/<Champion>.json` (eligible {aug: stages}, raw `wr`
   [winRate, pickRate, samples], `stageWr`, top `pairs`, `items`, `archetypes`, per-augment
   `builds` with top items and purchase order), `leaderboard.json` (precompute: per champion
-  top-3 builds, top 150 combos, `reference` = 95th percentile ceiling used as score 100).
+  top-3 builds + `axisBest` {g,c,f} = build maximizing power × that axis, each tagged `found`;
+  `reference` = 95th percentile ceiling used as score 100; combo rows are derived in the app).
 - Augments also carry `cur` (merged curated data, `p` seeded from global WR when not curated),
   `type` (taxonomy), `global` (ARAMKit stats), `eligibleCount`, `stages`. Champions carry
   `profile` (0-1 attributes), `flags`, `abilityAugmentSlots`, abilities with `scalings`.
@@ -282,7 +326,8 @@ data/reports/             build QA reports and patch diffs
 - Ranking (search.ts): now = evaluate(build + candidate); best case = greedy best follow-ups
   on later screens (best luck), using follow-up gains vs the current build + exact pairwise
   synergy with the candidate; expected = Σ later screens Σ rarity P(rarity) × E[best of ~6 seen
-  cards] × 0.85. Leaderboards use a full beam search (width 8) with fixed champion items.
+  cards] × 0.85. Leaderboards use a full beam search (width 8) with fixed champion items, once for
+  craziness and once per axis (objective power × axis); ~2.5 min for all champions.
 - Probabilities (odds.ts, all estimates): ARAMKit rarity chain; eligible pool = observed per
   champion and screen, minus picked/excluded/locked-by-track; 3 cards + 1 reroll each → P(seen)
   = 6/n; ability augment slot uniform; Golden Reroll 20% (estimate); anvil tier odds 60/30/10

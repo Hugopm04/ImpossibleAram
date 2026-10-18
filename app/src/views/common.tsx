@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../state";
 import { t, tx } from "../i18n";
-import { makeCtx, type Ctx, type Evaluation } from "../engine/score";
+import { makeCtx, toScore, type Ctx, type Evaluation } from "../engine/score";
+import { championScores } from "../engine/leaderboard";
 import { bestBuild, type BestBuild } from "../engine/items";
 import { buildProbability, formatOdds } from "../engine/odds";
 import type { Build, Champion } from "../engine/types";
 import { AbilityRef, AugmentRef, ItemRef } from "../components/cards";
 import { oddsCtx } from "../engine/search";
+import { SortBar, directed, useSort } from "../components/Sort";
 
 export function useEngineCtx(): Ctx | null {
   const { data, build, stats, settings, feedback } = useApp();
@@ -30,22 +32,59 @@ export function useDeferredCompute<T>(fn: () => T, deps: unknown[]): T | null {
   return value;
 }
 
+type ChampSortKey = "ceiling" | "expected" | "name" | "g" | "c" | "f";
+
+/** Champion grid for Planner and Live (D51): score badge per tile, sorted by craziness ceiling by default. */
 export function ChampionPicker({ onPick }: { onPick: (c: Champion) => void }) {
-  const { data, loc } = useApp();
+  const { data, loc, settings } = useApp();
   const [q, setQ] = useState("");
+  const sort = useSort<ChampSortKey>("ceiling", ["name"]);
+  const scores = useMemo(() => championScores(data?.leaderboard ?? null, settings), [data, settings.weights]);
   if (!data) return null;
+  const value = (c: Champion): number | null => {
+    const s = scores.get(c.id);
+    if (!s) return null;
+    switch (sort.key) {
+      case "expected": return s.expected;
+      case "g": return s.best.axes.g;
+      case "c": return s.best.axes.c;
+      case "f": return s.best.axes.f;
+      default: return s.ceiling;
+    }
+  };
+  const byName = (a: Champion, b: Champion) => tx(loc, a.name).localeCompare(tx(loc, b.name));
   const list = data.champions
     .filter((c) => !q || tx(loc, c.name).toLowerCase().includes(q.toLowerCase()) || c.id.toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => tx(loc, a.name).localeCompare(tx(loc, b.name)));
+    .sort((a, b) => {
+      if (sort.key === "name") return directed(sort.dir, byName)(a, b);
+      const va = value(a);
+      const vb = value(b);
+      if (va == null || vb == null) return va == null && vb == null ? byName(a, b) : va == null ? 1 : -1; // unscored last
+      return directed<number>(sort.dir, (x, y) => x - y)(va, vb) || byName(a, b);
+    });
+  const badge = (c: Champion) => {
+    const s = scores.get(c.id);
+    if (!s) return <b className="tile-score none" title={t(loc, "noScore")}>—</b>;
+    const shown = sort.key === "expected" ? toScore(s.expected)
+      : sort.key === "g" || sort.key === "c" || sort.key === "f" ? s.best.axes[sort.key] : toScore(s.ceiling);
+    return <b className="tile-score" style={sort.key.length === 1 ? { color: `var(--${sort.key})` } : undefined}>{shown.toFixed(0)}</b>;
+  };
   return (
     <div className="panel">
       <h2>{t(loc, "selectChampion")}</h2>
-      <input className="input" autoFocus placeholder={t(loc, "search")} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260, marginBottom: 10 }} />
+      <div className="row" style={{ marginBottom: 10 }}>
+        <input className="input" autoFocus placeholder={t(loc, "search")} value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+        <SortBar sort={sort} label={`${t(loc, "sortBy")}:`} options={[
+          { k: "ceiling", label: t(loc, "ceiling") }, { k: "expected", label: t(loc, "expected") }, { k: "name", label: t(loc, "name") },
+          { k: "g", label: "G" }, { k: "c", label: "C" }, { k: "f", label: "F" },
+        ]} />
+      </div>
       <div className="champ-grid">
         {list.map((c) => (
           <button key={c.id} className="champ-tile" onClick={() => onPick(c)} title={tx(loc, c.title)}>
             <img src={c.icon} alt="" loading="lazy" />
             <span>{tx(loc, c.name)}</span>
+            {badge(c)}
           </button>
         ))}
       </div>

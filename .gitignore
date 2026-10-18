@@ -9,3 +9,6 @@ app/dist/
 # Python
 __pycache__/
 *.pyc
+
+# TypeScript build info (tsc -b)
+*.tsbuildinfo
