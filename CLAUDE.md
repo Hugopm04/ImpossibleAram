@@ -120,13 +120,14 @@ review (D27/D40) and champion restrictions if decoding is imperfect (D17/D40).
 | D38 | Delivery | **Build everything, then show** (no incremental demos). |
 | D39 | Review depth | User approves **taxonomy + formula**; Claude tags all augments/champions, then shows **samples and the most controversial / high-impact tags** for spot checks. Feedback refines the rest. |
 | D40 | Checkpoints | Despite D38, **pause and ask** only for: (a) taxonomy review (D27), (b) champion restrictions if decoding isn't perfect (D17). |
-| D41 | Commits | **Commit automatically at working milestones**, local only, never pushed. |
+| D41 | Commits | **Commit automatically at working milestones.** (Push policy: see D49.) |
 | D42 | Style | **LoL Hextech dark**: dark blue/black, gold accents, in-game rarity colours (silver / gold / prismatic). |
 | D43 | Spanish variant | **es_ES** (Spain) string tables. |
 | D44 | Synergy model | **General tag rules** (e.g. stacker × stat amp multiply, on-hit × attack speed, haste × per-cast) **+ hand-written curated combos** with explicit bonuses **+ set bonuses** from game data. |
 | D45 | Anti-synergy | **Warning only**: conflicts are flagged with an explanation; the score is **not** lowered and nothing is hidden. |
 | D47 | Taxonomy approved | The 22 primary types in `curation/taxonomy.json` are **approved as is** (2026-10-18). Next layer: multi-valued mechanic tags + curated G/C/F/power per augment. |
 | D48 | Eligibility source | **Observed data** (augments seen per champion and per stage in real games: ARAMKit, cross-checked with u.gg) is the eligibility source; ability-augment spells inferred from `Trait_*` spell tags. The user agreed this is what they would have suggested. |
+| D49 | Remote | `origin` = https://github.com/Hugopm04/ImpossibleAram (empty repo prepared by the user). **Commit and push once the build is done** (user request 2026-10-18, supersedes "never pushed" in D41). |
 | D46 | Luck model | **Keep both columns** (refines D7): **Best case** = optimal play + best luck ever (every future offer goes your way); **Expected** = optimal play with real odds. Default sort: best case. The probability of the best case is shown next to it. |
 
 ## Open questions

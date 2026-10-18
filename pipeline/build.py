@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # run with `python -I`: own folder only
+import community
+import profiles
 from common import APP_DATA, CURATION, REPORTS, current_raw_dir, load_json, save_json
 from render import SpellCtx, Strings, fmt_ranks, main_text, render
 
@@ -350,6 +352,15 @@ def build_ability(c: Ctx, b: dict, alias: str, slot: str, path: str | None, plug
             icon = plugin_asset(ps.get("abilityIconPath")) or icon
     if not icon and sp.get("mImgIconName"):
         icon = asset_url(sp["mImgIconName"][0])
+    scalings: dict[int, float] = {}
+    for cname in (sp.get("mSpellCalculations") or {}):
+        try:
+            v, _pct, _prec = sctx.calc(cname)
+        except Exception:
+            continue
+        for stat, _formula, coefs in v.scal:
+            if coefs:
+                scalings[stat] = max(scalings.get(stat, 0.0), round(abs(coefs[-1]), 4))
     cds = sp.get("cooldownTime") or (sp.get("Cooldown") or {}).get("values") or []
     mana = sp.get("mana") or []
     for loc in LOCS:
@@ -368,6 +379,7 @@ def build_ability(c: Ctx, b: dict, alias: str, slot: str, path: str | None, plug
         "cooldownValues": [round(cds[i], 3) for i in range(1, ranks + 1) if i < len(cds)] if cds else [],
         "castRange": (sp.get("castRangeDisplayOverride") or sp.get("castRange") or [0, 0])[1] if sp else 0,
         "traits": sorted(t for t in (sp.get("mSpellTags") or []) if t),
+        "scalings": {str(k): v for k, v in scalings.items()},
         "abilityTraits": (aobj or {}).get("AbilityTraits", 0),
     }
 
@@ -445,6 +457,45 @@ def build_draft(c: Ctx) -> dict:
 
 # ---------------------------------------------------------------- main
 
+def item_stat_tags(it: dict) -> list[str]:
+    st = it.get("stats", {})
+    m = {"FlatMagicDamageMod": "gives:AP", "FlatPhysicalDamageMod": "gives:AD", "PercentAttackSpeedMod": "gives:AS",
+         "FlatCritChanceMod": "gives:crit", "FlatHPPoolMod": "gives:HP", "FlatArmorMod": "gives:armor",
+         "FlatSpellBlockMod": "gives:MR", "FlatMovementSpeedMod": "gives:MS", "PercentMovementSpeedMod": "gives:MS",
+         "FlatMPPoolMod": "gives:mana", "PercentLifeStealMod": "gives:lifesteal"}
+    tags = {v for k, v in m.items() if st.get(k)}
+    if "AbilityHaste" in it.get("tags", []):
+        tags.add("gives:AH")
+    if "ArmorPenetration" in it.get("tags", []) or "MagicPenetration" in it.get("tags", []):
+        tags.add("gives:pen")
+    tags.add("item:any")
+    return sorted(tags)
+
+
+def merge_curation(augments: list[dict], items: list[dict], global_stats: dict) -> None:
+    cur = load_json(CURATION / "augments.json")["augments"]
+    tax = load_json(CURATION / "taxonomy.json")["assignments"]
+    for a in augments:
+        c = cur.get(a["id"])
+        if c is None:
+            report.append(f"no curated entry for augment {a['id']}")
+            c = {"t": [], "g": 0, "c": 0, "f": 0, "time": "flat"}
+        gs = global_stats.get(a["id"])
+        seed = 1.0 + 3.0 * ((gs or {}).get("winRate", 0.5) - 0.5) if gs else 1.0
+        a["type"] = tax.get(a["id"])
+        a["cur"] = {"t": c.get("t", []), "g": c.get("g", 0), "c": c.get("c", 0), "f": c.get("f", 0),
+                    "p": round(c.get("p", max(0.6, min(1.4, seed))), 3), "time": c.get("time", "flat"),
+                    "boost": c.get("boost", {})}
+        a["global"] = gs
+    icur = load_json(CURATION / "items.json")
+    cur_items = {**icur.get("items", {}), **icur.get("special", {})}
+    for it in items:
+        c = cur_items.get(it["id"], {})
+        it["cur"] = {"t": sorted(set(c.get("t", [])) | set(item_stat_tags(it))), "g": c.get("g", 0),
+                     "c": c.get("c", 0), "f": c.get("f", 0)}
+        it["special"] = it["id"] in icur.get("special", {})
+
+
 def main() -> None:
     raw = current_raw_dir()
     versions = dict(line.split("=", 1) for line in (raw / "VERSIONS.txt").read_text().split())
@@ -456,18 +507,56 @@ def main() -> None:
     anvils = build_anvils(c)
     summoners = build_summoners(c)
     draft = build_draft(c)
+
+    # community statistics (ARAMKit + u.gg)
+    pid_to_id = {a["platformId"]: a["id"] for a in augments}
+    ak = community.load(raw)
+    global_stats, odds, eligibility = {}, None, {}
+    ugg = community.ugg_eligibility(raw, pid_to_id)
+    curated_champs = load_json(CURATION / "champions.json")
+    items_by_id = {it["id"]: it for it in items}
+    stats_dir = APP_DATA / "champstats"
+    if ak:
+        global_stats = community.global_augments(ak, pid_to_id)
+        odds = community.odds(ak)
+    for ch in champions:
+        cs = community.champion_stats(ak, ch["key"], pid_to_id) if ak else None
+        observed = set((cs or {}).get("eligible", {})) | ugg.get(ch["key"], set())
+        if cs:
+            for aid in ugg.get(ch["key"], set()) - set(cs["eligible"]):
+                cs["eligible"][aid] = global_stats.get(aid, {}).get("stages", [1, 2, 3, 4])
+            for aid in cs["eligible"]:
+                eligibility.setdefault(aid, []).append(ch["id"])
+            save_json(stats_dir / f"{ch['id']}.json", cs)
+        prof = profiles.derive(ch, cs, items_by_id, curated_champs, observed)
+        ch["profile"] = prof["attrs"]
+        ch["flags"] = prof["flags"]
+        ch["hasStats"] = cs is not None
+        ch["abilityAugmentSlots"] = {a["id"]: profiles.ability_slots(ch, a["id"])
+                                     for a in augments if a["isAbility"]}
+    merge_curation(augments, items, global_stats)
+    for a in augments:
+        a["eligibleCount"] = len(eligibility.get(a["id"], []))
+        a["stages"] = (global_stats.get(a["id"]) or {}).get("stages", [1, 2, 3, 4])
+    for name in ("synergy", "vocabulary"):
+        save_json(APP_DATA / f"{name}.json", load_json(CURATION / f"{name}.json"))
+    track = load_json(CURATION / "track.json")
     meta = {
         "gameVersion": versions.get("game"),
         "ddragonVersion": versions.get("ddragon"),
         "patch": "26." + versions.get("game", "0.0").split(".")[1],
         "builtAt": dt.datetime.now().isoformat(timespec="seconds"),
         "counts": {"augments": len(augments), "enabledAugments": sum(a["enabled"] for a in augments),
-                   "champions": len(champions), "items": len(items), "anvils": len(anvils)},
+                   "champions": len(champions), "items": len(items), "anvils": len(anvils),
+                   "championsWithStats": sum(ch["hasStats"] for ch in champions)},
         "buildTagBits": BUILD_TAG_BITS,
         "augmentTagBits": AUGMENT_TAG_BITS,
+        "communitySources": {"aramkit": (raw / "community" / "aramkit" / "DATAPATH.txt").read_text().strip()
+                             if ak else None, "ugg": bool(ugg)},
     }
     for name, obj in [("meta", meta), ("augments", augments), ("anvils", anvils), ("champions", champions),
-                      ("items", items), ("summoners", summoners), ("draft", draft)]:
+                      ("items", items), ("summoners", summoners), ("draft", draft), ("track", track),
+                      ("eligibility", eligibility), ("odds", odds or {})]:
         save_json(APP_DATA / f"{name}.json", obj)
     REPORTS.mkdir(parents=True, exist_ok=True)
     (REPORTS / f"build-{versions.get('game')}.txt").write_text("\n".join(report) + "\n", encoding="utf-8")
