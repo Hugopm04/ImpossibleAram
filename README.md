@@ -3,6 +3,8 @@
 A local tool for finding the craziest champion + augment combinations in League of Legends
 **ARAM: Mayhem**: fast exponential growth, almost no counterplay, funny or extravagant.
 
+> **How it was built.** I designed the architecture and wrote the specifications; the code was written by an AI coding agent (Claude Code) under my direction, and I reviewed and tested it.
+
 > Project index, decisions and status for contributors (and future Claude sessions) live in
 > [CLAUDE.md](CLAUDE.md).
 
